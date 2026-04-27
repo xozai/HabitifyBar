@@ -7,11 +7,15 @@ A native macOS menu bar app that surfaces your [Habitify](https://habitify.me) h
 ## Features
 
 - **Live count** — menu bar icon shows today's completed/total habit count at a glance
-- **Filter tabs** — switch between All, Morning, Afternoon, and Evening views, each color-coded by time of day
-- **Habit list** — each row shows a color dot, habit name, flame streak badge, and current status icon
-- **Expandable rows** — tap any habit to reveal a 7-day dot chain (colored by completion status) and Done / Fail / Skip action buttons; tapping an active button undoes it
+- **Habit list** — each row shows a color dot, habit name, flame streak badge, and current status icon; window height adjusts to content (no scroll for 5 or fewer habits, scrollable for more)
+- **Action popover** — tap any habit row to reveal Done / Fail / Skip buttons; tap again to Undo
+- **Filter modes** — choose how habits are filtered from the Settings window:
+  - *All Habits* — show every habit regardless of time
+  - *Current Time of Day* — automatically shows Morning, Afternoon, or Evening habits based on the clock
+  - *By Time of Day* — reveals a tab bar to manually switch between Morning, Afternoon, and Evening
+- **Settings window** — gear icon (or right-click the menu bar icon) opens a dedicated Settings window with filter mode selection and Launch at Login toggle
+- **Right-click menu** — right-click the menu bar icon for quick access to Settings, Log Out, and Quit
 - **Secure key storage** — first-run setup saves your Habitify API key to macOS Keychain
-- **Settings menu** — gear icon opens a pull-down with a Launch at Login toggle and a Disconnect option
 - **Manual refresh** — refresh button pulls the latest habit data on demand
 
 ## Requirements
@@ -56,7 +60,7 @@ A native macOS menu bar app that surfaces your [Habitify](https://habitify.me) h
 
 5. **Connect your Habitify account** — on first launch, a setup screen appears. Paste your API key (found at Habitify → Settings → API → API Key) and click Connect.
 
-6. **Optional — launch at login:** click the gear icon in the menu bar popover and enable Launch at Login.
+6. **Optional — launch at login:** open Settings from the gear icon and enable Launch at Login.
 
 ## Updating
 
@@ -77,8 +81,9 @@ HabitifyBar is a Swift Package Manager project with no Xcode project file.
 | Component | Role |
 |---|---|
 | `SwiftUI` + `MenuBarExtra` | Menu bar window (`.window` style); `LSUIElement = YES` suppresses the Dock icon |
-| `HabitifyAPI` actor | async/await `URLSession` client; hits `GET /journal?target_date=` and `PUT /status/{id}` on `api.habitify.me`; API key sent as `Authorization` header |
-| `HabitViewModel` | `@Observable` class; drives all views; applies optimistic status updates and reverts on API failure |
+| `HabitifyAPI` actor | async/await `URLSession` client; hits the Habitify V2 REST API (`api.habitify.me/v2`); API key sent as `X-API-Key` header; uses `POST /habits/{id}/logs` with `value + unitSymbol` to mark habits complete |
+| `HabitViewModel` | `@Observable` class; drives all views; stores `filterMode` in UserDefaults; applies optimistic status updates and reverts on API failure |
+| `FilterMode` | Enum with three cases (`allHabits`, `currentTimeOfDay`, `byTimeOfDay`); persisted to UserDefaults |
 | `KeychainStore` | Thin enum wrapping `SecItemAdd` / `SecItemCopyMatching` from the Security framework |
 | `LaunchAtLoginManager` | `@Observable` wrapper around `SMAppService.mainApp` |
 | `Makefile` | Builds the release binary, assembles the `.app` bundle, ad-hoc codesigns it, and installs to `~/Applications` |

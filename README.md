@@ -54,18 +54,13 @@ A native macOS menu bar app that surfaces your [Habitify](https://habitify.me) h
    open ~/Applications/HabitifyBar.app
    ```
 
-5. **Connect your Habitify account** — on first launch, a setup screen appears. Paste your API key (found at Habitify → Settings → Developer → API Key) and click Connect.
+5. **Connect your Habitify account** — on first launch, a setup screen appears. Paste your API key (found at Habitify → Settings → API → API Key) and click Connect.
 
 6. **Optional — launch at login:** click the gear icon in the menu bar popover and enable Launch at Login.
 
 ## Updating
 
 `make install` is idempotent — re-running it rebuilds and reinstalls cleanly over any existing version.
-
-## Known Issues
-
-**API key returns 401 (Unauthorized)**
-Habitify's REST API (`api.habitify.me`) is returning 401 for valid Pro account API keys. This appears to be a backend issue on Habitify's side — the `Authorization` header format is correct and the key is freshly generated. If you encounter this, contact Habitify support and reference the `/journal` endpoint returning 401 with a valid Pro API key.
 
 ## Uninstalling
 

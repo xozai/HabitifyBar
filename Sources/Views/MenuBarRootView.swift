@@ -4,7 +4,7 @@ struct MenuBarRootView: View {
     @Environment(HabitViewModel.self) private var vm
 
     var body: some View {
-        if vm.hasAPIKey {
+        if vm.isAuthenticated {
             HabitListView()
         } else {
             SetupView()

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct HabitListView: View {
     @Environment(HabitViewModel.self) private var vm
-    @State private var expandedId: String?
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         @Bindable var vm = vm
@@ -29,18 +29,14 @@ struct HabitListView: View {
                     .buttonStyle(.plain)
                     .help("Refresh")
                 }
-                let loginMgr = LaunchAtLoginManager.shared
                 Menu {
-                    Toggle(isOn: Binding(
-                        get: { loginMgr.isEnabled },
-                        set: { _ in loginMgr.toggle() }
-                    )) {
-                        Label("Launch at Login", systemImage: "power")
+                    Button("Settings…") {
+                        NSApp.activate(ignoringOtherApps: true)
+                        openWindow(id: "settings")
                     }
                     Divider()
-                    Button("Disconnect", role: .destructive) {
-                        vm.clearAPIKey()
-                    }
+                    Button("Log Out") { vm.clearAPIKey() }
+                    Button("Quit HabitifyBar") { NSApp.terminate(nil) }
                 } label: {
                     Image(systemName: "gear")
                         .font(.system(size: 13))
@@ -53,9 +49,11 @@ struct HabitListView: View {
             .padding(.top, 10)
             .padding(.bottom, 8)
 
-            TimeFilterBar(selection: $vm.filter)
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+            if vm.filterMode == .byTimeOfDay {
+                TimeFilterBar(selection: $vm.filter)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+            }
 
             if let error = vm.errorMessage {
                 Text(error)
@@ -64,35 +62,37 @@ struct HabitListView: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 6)
             }
-            if let loginErr = LaunchAtLoginManager.shared.lastError {
-                Text(loginErr)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 6)
-            }
 
             Divider()
 
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    if vm.filteredHabits.isEmpty && !vm.isLoading {
-                        Text("No habits for this time of day")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 24)
-                    }
+            let rowHeight: CGFloat = 38
+            let habitCount = vm.filteredHabits.count
+
+            if habitCount == 0 && !vm.isLoading {
+                Text("No habits to show")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 24)
+                    .padding(.bottom, 16)
+            } else if habitCount <= 5 {
+                VStack(spacing: 0) {
                     ForEach(vm.filteredHabits) { habit in
-                        HabitRowView(habit: habit, isExpanded: expandedId == habit.id) {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                expandedId = expandedId == habit.id ? nil : habit.id
-                            }
-                        }
+                        HabitRowView(habit: habit)
                         Divider().padding(.leading, 12)
                     }
                 }
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(vm.filteredHabits) { habit in
+                            HabitRowView(habit: habit)
+                            Divider().padding(.leading, 12)
+                        }
+                    }
+                }
+                .frame(height: rowHeight * 5)
             }
-            .frame(maxHeight: 420)
         }
         .task { await vm.refresh() }
     }

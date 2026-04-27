@@ -6,15 +6,36 @@ class HabitViewModel {
     var filter: HabitTimeOfDay = .allDay
     var isLoading = false
     var errorMessage: String?
-    var hasAPIKey: Bool { KeychainStore.load() != nil }
+    var isAuthenticated: Bool = KeychainStore.load() != nil
+
+    var filterMode: FilterMode = FilterMode(rawValue: UserDefaults.standard.string(forKey: "filterMode") ?? "") ?? .allHabits {
+        didSet { UserDefaults.standard.set(filterMode.rawValue, forKey: "filterMode") }
+    }
 
     var filteredHabits: [Habit] {
-        guard filter != .allDay else { return habits }
-        return habits.filter { $0.timeOfDayIds.contains(filter.rawValue) }
+        switch filterMode {
+        case .allHabits:
+            return habits
+        case .currentTimeOfDay:
+            let tof = autoTimeOfDay
+            return habits.filter { $0.timeOfDayIds.contains(tof.rawValue) }
+        case .byTimeOfDay:
+            guard filter != .allDay else { return habits }
+            return habits.filter { $0.timeOfDayIds.contains(filter.rawValue) }
+        }
     }
 
     var completedCount: Int { habits.filter { $0.status == .completed }.count }
     var totalCount: Int { habits.count }
+
+    private var autoTimeOfDay: HabitTimeOfDay {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<12:  return .morning
+        case 12..<17: return .afternoon
+        default:      return .evening
+        }
+    }
 
     func refresh() async {
         isLoading = true
@@ -28,15 +49,13 @@ class HabitViewModel {
     }
 
     func mark(_ habit: Habit, as status: HabitStatus) {
-        // Optimistic update
         if let idx = habits.firstIndex(where: { $0.id == habit.id }) {
             habits[idx].status = status
         }
         Task {
             do {
-                try await HabitifyAPI.shared.setStatus(status, habitId: habit.id)
+                try await HabitifyAPI.shared.setStatus(status, for: habit)
             } catch {
-                // Revert on failure
                 await MainActor.run {
                     if let idx = habits.firstIndex(where: { $0.id == habit.id }) {
                         habits[idx].status = habit.status
@@ -68,11 +87,14 @@ class HabitViewModel {
 
     func saveAPIKey(_ key: String) {
         KeychainStore.save(key)
+        isAuthenticated = true
         Task { await refresh() }
     }
 
     func clearAPIKey() {
         KeychainStore.delete()
+        isAuthenticated = false
         habits = []
+        errorMessage = nil
     }
 }

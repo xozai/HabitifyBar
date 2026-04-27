@@ -46,7 +46,7 @@ struct Habit: Codable, Identifiable {
     let timeOfDayIds: [String]
     let type: String
     let currentStreak: Streak
-    let progress: HabitProgress
+    let progress: HabitProgress?
 
     var primaryTimeOfDay: HabitTimeOfDay {
         guard let first = timeOfDayIds.first else { return .allDay }

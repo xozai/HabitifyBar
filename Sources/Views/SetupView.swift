@@ -19,7 +19,7 @@ struct SetupView: View {
                 Text("To find your API key:")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Habitify → Settings → Developer → API Key")
+                Text("Habitify → Settings → API → API Key")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)
@@ -56,7 +56,7 @@ struct SetupView: View {
         guard !apiKey.isEmpty else { return }
         isValidating = true
         validationError = nil
-        vm.saveAPIKey(apiKey.trimmingCharacters(in: .whitespaces))
+        vm.saveAPIKey(apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
         // Give refresh a moment; errors surface via vm.errorMessage
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             isValidating = false

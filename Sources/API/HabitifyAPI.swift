@@ -16,7 +16,7 @@ enum APIError: LocalizedError {
 
 actor HabitifyAPI {
     static let shared = HabitifyAPI()
-    private let baseURL = URL(string: "https://api.habitify.me")!
+    private let baseURL = URL(string: "https://api.habitify.me/v2")!
 
     private var apiKey: String {
         get throws {
@@ -25,14 +25,14 @@ actor HabitifyAPI {
         }
     }
 
-    private func request(_ path: String, method: String = "GET", query: [String: String] = [:], body: [String: String]? = nil) throws -> URLRequest {
+    private func request(_ path: String, method: String = "GET", query: [String: String] = [:], body: [String: Any]? = nil) throws -> URLRequest {
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty {
             components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
         }
         var req = URLRequest(url: components.url!)
         req.httpMethod = method
-        req.setValue(try apiKey, forHTTPHeaderField: "Authorization")
+        req.setValue(try apiKey, forHTTPHeaderField: "X-API-Key")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let body {
             req.httpBody = try? JSONSerialization.data(withJSONObject: body)
@@ -41,31 +41,54 @@ actor HabitifyAPI {
     }
 
     func fetchHabits(for date: Date = .now) async throws -> [Habit] {
-        let req = try request("journal", query: ["target_date": isoDate(date)])
+        let req = try request("habits/journal", query: ["date": isoDate(date)])
         let (data, resp) = try await URLSession.shared.data(for: req)
         try validate(resp)
         do {
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            let decoded = try decoder.decode(HabitsResponse.self, from: data)
+            let decoded = try JSONDecoder().decode(HabitsResponse.self, from: data)
             return decoded.data
         } catch {
             throw APIError.decodingFailed(error)
         }
     }
 
-    func setStatus(_ status: HabitStatus, habitId: String, date: Date = .now) async throws {
-        let req = try request("status/\(habitId)", method: "PUT", body: [
-            "status": status.rawValue,
-            "target_date": isoDate(date)
-        ])
-        let (_, resp) = try await URLSession.shared.data(for: req)
-        try validate(resp)
+    func setStatus(_ status: HabitStatus, for habit: Habit, date: Date = .now) async throws {
+        switch status {
+        case .completed:
+            // For manual/rep-based habits, log the target value to instantly complete.
+            // Fall back to the boolean complete endpoint for habits without a target.
+            if let progress = habit.progress, progress.target > 0, let unit = progress.unit {
+                let req = try request("habits/\(habit.id)/logs", method: "POST", body: [
+                    "value": progress.target,
+                    "unitSymbol": unit,
+                    "targetDate": isoDate(date)
+                ])
+                let (_, resp) = try await URLSession.shared.data(for: req)
+                try validate(resp)
+            } else {
+                let req = try request("habits/\(habit.id)/logs/complete", method: "POST",
+                                      body: ["targetDate": isoDate(date)])
+                let (_, resp) = try await URLSession.shared.data(for: req)
+                try validate(resp)
+            }
+        case .failed:
+            let req = try request("habits/\(habit.id)/logs/failed", method: "POST",
+                                  body: ["targetDate": isoDate(date)])
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            try validate(resp)
+        case .skipped:
+            let req = try request("habits/\(habit.id)/logs/skipped", method: "POST",
+                                  body: ["targetDate": isoDate(date)])
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            try validate(resp)
+        case .inprogress:
+            return
+        }
     }
 
     func removeStatus(habitId: String, date: Date = .now) async throws {
-        let req = try request("status/\(habitId)", method: "DELETE",
-                              query: ["target_date": isoDate(date)])
+        let req = try request("habits/\(habitId)/logs/undo", method: "POST",
+                              body: ["targetDate": isoDate(date)])
         let (_, resp) = try await URLSession.shared.data(for: req)
         try validate(resp)
     }

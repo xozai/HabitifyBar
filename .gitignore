@@ -1,0 +1,9 @@
+# Swift build artifacts
+.build/
+.swiftpm/
+
+# Local .app bundle (built by Makefile, installed to ~/Applications)
+HabitifyBar.app/
+
+# macOS
+.DS_Store

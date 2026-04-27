@@ -62,6 +62,11 @@ A native macOS menu bar app that surfaces your [Habitify](https://habitify.me) h
 
 `make install` is idempotent — re-running it rebuilds and reinstalls cleanly over any existing version.
 
+## Known Issues
+
+**API key returns 401 (Unauthorized)**
+Habitify's REST API (`api.habitify.me`) is returning 401 for valid Pro account API keys. This appears to be a backend issue on Habitify's side — the `Authorization` header format is correct and the key is freshly generated. If you encounter this, contact Habitify support and reference the `/journal` endpoint returning 401 with a valid Pro API key.
+
 ## Uninstalling
 
 ```bash
